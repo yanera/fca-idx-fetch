@@ -8,7 +8,7 @@ def fetch_fca():
     target_url_part = "/secondary/get/SpecialMonitoringEffects/MonitoringEffectsHistorical"
 
     with sync_playwright() as p:
-        browser = p.chromium.launch(headless=True)
+        browser = p.chromium.launch(headless=False)  # headless dimatikan untuk debug
         context = browser.new_context(
             user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
                        "AppleWebKit/537.36 (KHTML, like Gecko) "
@@ -38,18 +38,21 @@ def fetch_fca():
 
         page.on("response", handle_response)
 
-        # Buka halaman yang memicu request API
+        print("Buka halaman FCA IDX...")
         page.goto("https://www.idx.co.id/id/perusahaan-tercatat/daftar-efek-pemantauan-khusus")
 
-        # Tunggu lebih lama agar request selesai, bisa sesuaikan
-        page.wait_for_timeout(8000)
+        print("Ambil screenshot halaman untuk cek challenge...")
+        page.screenshot(path="page_debug.png")
+
+        print("Tunggu 15 detik untuk interaksi manual jika perlu...")
+        page.wait_for_timeout(15000)
 
         browser.close()
 
     if json_data is None:
         print("Gagal mengambil data JSON, buat file dummy kosong")
         with open("fca.json", "w", encoding="utf-8") as f:
-            f.write("[]")  # dummy kosong
+            f.write("[]")
         return
 
     with open("fca.json", "w", encoding="utf-8") as f:
