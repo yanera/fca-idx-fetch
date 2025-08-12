@@ -1,47 +1,36 @@
-from playwright.sync_api import sync_playwright
-import json
-from datetime import datetime
-import os
+name: Fetch FCA Data with Playwright
 
-def fetch_fca():
-    today = datetime.now().strftime("%Y%m%d")
-    target_url = f"https://www.idx.co.id/secondary/get/SpecialMonitoringEffects/MonitoringEffectsHistorical?startDate={today}&endDate={today}&View=Table"
+on:
+  schedule:
+    - cron: '*/5 * * * *'  # tiap 5 menit
+  workflow_dispatch:
 
-    with sync_playwright() as p:
-        browser = p.chromium.launch(headless=True)
-        page = browser.new_page()
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
 
-        json_data = None
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.x'
 
-        def handle_response(response):
-            nonlocal json_data
-            if response.url == target_url and response.status == 200:
-                try:
-                    json_data = response.json()
-                except Exception as e:
-                    print(f"Error parsing JSON: {e}")
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install playwright
+          playwright install
 
-        page.on("response", handle_response)
+      - name: Run fetch_fca.py
+        run: |
+          python fetch_fca.py
+          ls -l
 
-        # Buka halaman yang memicu request API
-        page.goto("https://www.idx.co.id/id/perusahaan-tercatat/daftar-efek-pemantauan-khusus")
-
-        # Tunggu 5 detik agar request selesai
-        page.wait_for_timeout(5000)
-
-        browser.close()
-
-    if json_data is None:
-        print("Gagal mengambil data JSON")
-        return
-
-    # Simpan ke root folder repo
-    with open("fca.json", "w", encoding="utf-8") as f:
-        json.dump(json_data, f, ensure_ascii=False, indent=2)
-
-    print(f"Data FCA tanggal {today} berhasil diambil dan disimpan ke fca.json")
-    print("Current dir:", os.getcwd())
-    print("Files:", os.listdir())
-
-if __name__ == "__main__":
-    fetch_fca()
+      - name: Commit & push updated JSON
+        run: |
+          git config user.name "github-actions"
+          git config user.email "actions@github.com"
+          git add fca.json
+          git commit -m "Update FCA data" || echo "No changes to commit"
+          git push
